@@ -47,6 +47,8 @@ contract StableCronusStaking is Ownable {
     /// @notice Array of tokens that users can claim
     IERC20[] public rewardTokens;
     mapping(IERC20 => bool) public isRewardToken;
+
+    mapping(IERC20 => uint256) tokenIndex;
     /// @notice Last reward balance of `token`
     mapping(IERC20 => uint256) public lastRewardBalance;
 
@@ -180,13 +182,12 @@ contract StableCronusStaking is Ownable {
      * @param _rewardToken The address of the reward token
      */
     function addRewardToken(IERC20 _rewardToken) external onlyOwner {
-        require(
-            !isRewardToken[_rewardToken] && address(_rewardToken) != address(0),
-            "StableCronusStaking: token can't be added"
-        );
-        require(rewardTokens.length < 25, "StableCronusStaking: list of token too big");
+        uint256 valueIndex = tokenIndex[_rewardToken]; // 0 index is reserve as null identifier
+        require(valueIndex, "StableCronusStaking: rewardToken already exists.");
+        
         rewardTokens.push(_rewardToken);
-        isRewardToken[_rewardToken] = true;
+        tokenIndex[_rewardToken] = rewardTokens.length;
+        
         updateReward(_rewardToken);
         emit RewardTokenAdded(address(_rewardToken));
     }
@@ -196,17 +197,23 @@ contract StableCronusStaking is Ownable {
      * @param _rewardToken The address of the reward token
      */
     function removeRewardToken(IERC20 _rewardToken) external onlyOwner {
-        require(isRewardToken[_rewardToken], "StableCronusStaking: token can't be removed");
+        uint256 valueIndex = tokenIndex[_rewardToken];
+        require(valueIndex, "StableCronusStaking: rewardToken does not exist.");
+        
         updateReward(_rewardToken);
-        isRewardToken[_rewardToken] = false;
-        uint256 _len = rewardTokens.length;
-        for (uint256 i; i < _len; i++) {
-            if (rewardTokens[i] == _rewardToken) {
-                rewardTokens[i] = rewardTokens[_len - 1];
-                rewardTokens.pop();
-                break;
-            }
+        
+        uint256 toDeleteIndex = tokenIndex[_rewardToken] - 1;
+        uint256 lastIndex = rewardTokens.length - 1;
+        
+        if (lastIndex != toDeleteIndex) {
+            address lastValue = rewardTokens[lastIndex];
+            rewardTokens[toDeleteIndex] = lastValue;    // update last value to the removed value
+            tokenIndex[lastValue] = valueIndex;    // update index
         }
+        
+        rewardTokens.pop();
+        delete tokenIndex[_rewardToken];
+        
         emit RewardTokenRemoved(address(_rewardToken));
     }
 
