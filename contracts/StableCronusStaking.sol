@@ -294,6 +294,7 @@ contract StableCronusStaking is Ownable {
             IERC20 _token = rewardTokens[i];
             user.rewardDebt[_token] = 0;
         }
+        internalCronusBalance = internalCronusBalance.sub(_amount);
         CRN.safeTransfer(_msgSender(), _amount);
         emit EmergencyWithdraw(_msgSender(), _amount);
     }
