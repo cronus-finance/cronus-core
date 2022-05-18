@@ -360,9 +360,10 @@ contract MasterChefCronus is Ownable {
 
         IRewarder _rewarder = pool.rewarder;
         if (address(_rewarder) != address(0)) {
-            _rewarder.onJoeReward(msg.sender, 0);
+            _rewarder.onCronusReward(msg.sender, 0);
         }
 
+        // Note: transfer can fail or succeed if `amount` is zero.
         pool.lpToken.safeTransfer(address(msg.sender), amount);
         emit EmergencyWithdraw(msg.sender, _pid, amount);
     }
@@ -436,7 +437,7 @@ contract MasterChefCronus is Ownable {
     function collectAllPoolRewards() public {
         for (uint256 _pid = 0; _pid < poolInfo.length; _pid++) {
             PoolInfo memory pool = poolInfo[_pid];
-            UserInfo memory user = userInfo[_pid][msg.sender];
+            UserInfo storage user = userInfo[_pid][msg.sender];
             updatePool(_pid);
             if (user.amount > 0) {
                 // Harvest Cronus
