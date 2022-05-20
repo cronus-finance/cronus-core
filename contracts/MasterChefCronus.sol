@@ -453,5 +453,4 @@ contract MasterChefCronus is Ownable {
             }
         }
     }
-
 }

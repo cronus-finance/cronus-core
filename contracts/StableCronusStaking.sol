@@ -44,11 +44,13 @@ contract StableCronusStaking is Ownable {
     /// @dev Internal balance of CRN, this gets updated on user deposits / withdrawals
     /// this allows to reward users with CRN
     uint256 public internalCronusBalance;
+
     /// @notice Array of tokens that users can claim
     IERC20[] public rewardTokens;
-    mapping(IERC20 => bool) public isRewardToken;
 
+    /// @notice used to check a reward token is valid 
     mapping(IERC20 => uint256) tokenIndex;
+
     /// @notice Last reward balance of `token`
     mapping(IERC20 => uint256) public lastRewardBalance;
 
@@ -56,11 +58,13 @@ contract StableCronusStaking is Ownable {
 
     /// @notice The deposit fee, scaled to `DEPOSIT_FEE_PERCENT_PRECISION`
     uint256 public depositFeePercent;
+    
     /// @notice The precision of `depositFeePercent`
     uint256 public DEPOSIT_FEE_PERCENT_PRECISION;
 
     /// @notice Accumulated `token` rewards per share, scaled to `ACC_REWARD_PER_SHARE_PRECISION`
     mapping(IERC20 => uint256) public accRewardPerShare;
+
     /// @notice The precision of `accRewardPerShare`
     uint256 public ACC_REWARD_PER_SHARE_PRECISION;
 
@@ -111,8 +115,8 @@ contract StableCronusStaking is Ownable {
         depositFeePercent = _depositFeePercent;
         feeCollector = _feeCollector;
 
-        isRewardToken[_rewardToken] = true;
         rewardTokens.push(_rewardToken);
+        tokenIndex[_rewardToken] = rewardTokens.length;
         DEPOSIT_FEE_PERCENT_PRECISION = 1e18;
         ACC_REWARD_PER_SHARE_PRECISION = 1e24;
     }
@@ -235,7 +239,7 @@ contract StableCronusStaking is Ownable {
      * @return `_user`'s pending reward token
      */
     function pendingReward(address _user, IERC20 _token) external view returns (uint256) {
-        require(isRewardToken[_token], "StableCronusStaking: wrong reward token");
+        require(tokenIndex[_token] != 0, "StableCronusStaking: wrong reward token");
         UserInfo storage user = userInfo[_user];
         uint256 _totalCrn = internalCronusBalance;
         uint256 _accRewardTokenPerShare = accRewardPerShare[_token];
@@ -312,7 +316,7 @@ contract StableCronusStaking is Ownable {
      * @dev Needs to be called before any deposit or withdrawal
      */
     function updateReward(IERC20 _token) public {
-        require(isRewardToken[_token], "StableCronusStaking: wrong reward token");
+        require(tokenIndex[_token] != 0, "StableCronusStaking: wrong reward token");
 
         uint256 _totalCrn = internalCronusBalance;
 
