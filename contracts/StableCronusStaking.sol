@@ -58,18 +58,18 @@ contract StableCronusStaking is Ownable {
 
     /// @notice The deposit fee, scaled to `DEPOSIT_FEE_PERCENT_PRECISION`
     uint256 public depositFeePercent;
-    
-    /// @notice The precision of `depositFeePercent`
-    uint256 public DEPOSIT_FEE_PERCENT_PRECISION;
 
     /// @notice Accumulated `token` rewards per share, scaled to `ACC_REWARD_PER_SHARE_PRECISION`
     mapping(IERC20 => uint256) public accRewardPerShare;
 
-    /// @notice The precision of `accRewardPerShare`
-    uint256 public ACC_REWARD_PER_SHARE_PRECISION;
-
     /// @dev Info of each user that stakes CRN
     mapping(address => UserInfo) private userInfo;
+
+    /// @notice The precision of `depositFeePercent`
+    uint256 public constant DEPOSIT_FEE_PERCENT_PRECISION = 1e18;
+
+    /// @notice The precision of `accRewardPerShare`
+    uint256 public constant ACC_REWARD_PER_SHARE_PRECISION = 1e24;
 
     /// @notice Emitted when a user deposits CRN
     event Deposit(address indexed user, uint256 amount, uint256 fee);
@@ -81,13 +81,13 @@ contract StableCronusStaking is Ownable {
     event Withdraw(address indexed user, uint256 amount);
 
     /// @notice Emitted when a user claims reward
-    event ClaimReward(address indexed user, address indexed rewardToken, uint256 amount);
+    event RewardClaimed(address indexed user, address indexed rewardToken, uint256 amount);
 
     /// @notice Emitted when a user emergency withdraws its CRN
     event EmergencyWithdraw(address indexed user, uint256 amount);
 
     /// @notice Emitted when owner adds a token to the reward tokens list
-    event RewardTokenAdded(address token);
+    event RewardTokenAdded(address token, uint256 index);
 
     /// @notice Emitted when owner removes a token from the reward tokens list
     event RewardTokenRemoved(address token);
@@ -117,8 +117,6 @@ contract StableCronusStaking is Ownable {
 
         rewardTokens.push(_rewardToken);
         tokenIndex[_rewardToken] = rewardTokens.length;
-        DEPOSIT_FEE_PERCENT_PRECISION = 1e18;
-        ACC_REWARD_PER_SHARE_PRECISION = 1e24;
     }
 
     /**
@@ -150,7 +148,7 @@ contract StableCronusStaking is Ownable {
                     .sub(_previousRewardDebt);
                 if (_pending != 0) {
                     safeTokenTransfer(_token, _msgSender(), _pending);
-                    emit ClaimReward(_msgSender(), address(_token), _pending);
+                    emit RewardClaimed(_msgSender(), address(_token), _pending);
                 }
             }
         }
@@ -193,7 +191,7 @@ contract StableCronusStaking is Ownable {
         tokenIndex[_rewardToken] = rewardTokens.length;
         
         updateReward(_rewardToken);
-        emit RewardTokenAdded(address(_rewardToken));
+        emit RewardTokenAdded(address(_rewardToken), rewardTokens.length);
     }
 
     /**
@@ -282,7 +280,7 @@ contract StableCronusStaking is Ownable {
 
                 if (_pending != 0) {
                     safeTokenTransfer(_token, _msgSender(), _pending);
-                    emit ClaimReward(_msgSender(), address(_token), _pending);
+                    emit RewardClaimed(_msgSender(), address(_token), _pending);
                 }
             }
         }

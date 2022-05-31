@@ -28,7 +28,7 @@ contract MoneyMaker is Ownable {
     ICronusFactory public immutable factory;
 
     address public immutable bar;
-    address private immutable wavax;
+    address private immutable wevmos;
     /// @notice Any ERC20
     address public tokenTo;
     /// @notice In basis points aka parts per 10,000 so 5000 is 50%, cap of 50%, default is 0
@@ -48,9 +48,9 @@ contract MoneyMaker is Ownable {
 
     event AddAuthorizedAddress(address indexed _addr);
     event RemoveAuthorizedAddress(address indexed _addr);
-    event SetDevAddr(address _addr);
-    event SetDevCut(uint256 _amount);
-    event SetTokenTo(address _tokenTo);
+    event SetDevAddr(address indexed newDevAddr, address indexed oldDevAddr);
+    event SetDevCut(uint256 indexed newDevCut, uint256 indexed oldDevCut);
+    event SetTokenTo(address indexed newTokenTo, address indexed oldTokenTo);
     event LogBridgeSet(address indexed token, address indexed oldBridge, address indexed bridge);
     event LogConvert(
         address indexed server,
@@ -65,21 +65,21 @@ contract MoneyMaker is Ownable {
     /// @param _factory The address of CronusFactory
     /// @param _bar The address of CronusBar
     /// @param _tokenTo The address of the token we want to convert to
-    /// @param _wavax The address of wavax
+    /// @param _wevmos The address of wevmos
     constructor(
         address _factory,
         address _bar,
         address _tokenTo,
-        address _wavax
+        address _wevmos
     ) public {
         require(_factory != address(0), "MoneyMaker: factory can't be address(0)");
         require(_bar != address(0), "MoneyMaker: bar can't be address(0)");
         require(_tokenTo != address(0), "MoneyMaker: token can't be address(0)");
-        require(_wavax != address(0), "MoneyMaker: wavax can't be address(0)");
+        require(_wevmos != address(0), "MoneyMaker: wevmos can't be address(0)");
         factory = ICronusFactory(_factory);
         bar = _bar;
         tokenTo = _tokenTo;
-        wavax = _wavax;
+        wevmos = _wevmos;
         devAddr = _msgSender();
         _isAuth.add(_msgSender());
     }
@@ -116,7 +116,7 @@ contract MoneyMaker is Ownable {
     /// @param bridge The address of the tokenTo
     function setBridge(address token, address bridge) external onlyAuth {
         // Checks
-        require(token != tokenTo && token != wavax && token != bridge, "MoneyMaker: Invalid bridge");
+        require(token != tokenTo && token != wevmos && token != bridge, "MoneyMaker: Invalid bridge");
 
         // Effects
         address oldBridge = _bridges[token];
@@ -128,27 +128,24 @@ contract MoneyMaker is Ownable {
     /// @param _amount The new devCut value
     function setDevCut(uint256 _amount) external onlyOwner {
         require(_amount <= 5000, "setDevCut: cut too high");
+        emit SetDevCut(_amount, devCut);
         devCut = _amount;
-
-        emit SetDevCut(_amount);
     }
 
     /// @notice Sets `devAddr`, the address that will receive the `devCut`
     /// @param _addr The new dev address
     function setDevAddr(address _addr) external onlyOwner {
         require(_addr != address(0), "setDevAddr, address cannot be zero address");
+        emit SetDevAddr(_addr, devAddr);
         devAddr = _addr;
-
-        emit SetDevAddr(_addr);
     }
 
     /// @notice Sets token that we're buying back
     /// @param _tokenTo The new token address
     function setTokenToAddress(address _tokenTo) external onlyOwner {
         require(_tokenTo != address(0), "setTokenToAddress, address cannot be zero address");
+        emit SetTokenTo(_tokenTo, tokenTo);
         tokenTo = _tokenTo;
-
-        emit SetTokenTo(_tokenTo);
     }
 
     /// @notice Returns the `bridge` of a `token`
@@ -157,7 +154,7 @@ contract MoneyMaker is Ownable {
     function bridgeFor(address token) public view returns (address bridge) {
         bridge = _bridges[token];
         if (bridge == address(0)) {
-            bridge = wavax;
+            bridge = wevmos;
         }
     }
 
@@ -266,8 +263,8 @@ contract MoneyMaker is Ownable {
             if (token0 == tokenTo) {
                 IERC20(tokenTo).safeTransfer(bar, amount);
                 tokenOut = amount;
-            } else if (token0 == wavax) {
-                tokenOut = _toToken(wavax, amount, slippage);
+            } else if (token0 == wevmos) {
+                tokenOut = _toToken(wevmos, amount, slippage);
             } else {
                 address bridge = bridgeFor(token0);
                 amount = _swap(token0, bridge, amount, address(this), slippage);
@@ -281,12 +278,12 @@ contract MoneyMaker is Ownable {
             // eg. USDT - TOKEN
             IERC20(tokenTo).safeTransfer(bar, amount1);
             tokenOut = _toToken(token0, amount0, slippage).add(amount1);
-        } else if (token0 == wavax) {
+        } else if (token0 == wevmos) {
             // eg. AVAX - USDC
-            tokenOut = _toToken(wavax, _swap(token1, wavax, amount1, address(this), slippage).add(amount0), slippage);
-        } else if (token1 == wavax) {
+            tokenOut = _toToken(wevmos, _swap(token1, wevmos, amount1, address(this), slippage).add(amount0), slippage);
+        } else if (token1 == wevmos) {
             // eg. USDT - AVAX
-            tokenOut = _toToken(wavax, _swap(token0, wavax, amount0, address(this), slippage).add(amount1), slippage);
+            tokenOut = _toToken(wevmos, _swap(token0, wevmos, amount0, address(this), slippage).add(amount1), slippage);
         } else {
             // eg. MIC - USDT
             address bridge0 = bridgeFor(token0);
